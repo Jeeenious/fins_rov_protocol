@@ -1,0 +1,8 @@
+name: "fins_rov_proto"
+version: "0.1.0"
+description: "AA55 protocol encoding nodes for ROV control"
+maintainers:
+  - name: "Your Name"
+    email: "your.email@example.com"
+licenses:
+  - "MIT"
