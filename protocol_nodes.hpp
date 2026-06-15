@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <fins/node.hpp>
 #include "protocol.h"
 
@@ -20,17 +21,18 @@ public:
     register_input<int>("depth", &MotionEncoder::on_depth);
     register_output<std::string>("hex");
   }
-  void on_x(const int &v, fins::AcqTime)     { x_=v; mask_|=1; try_send(); }
-  void on_y(const int &v, fins::AcqTime)     { y_=v; mask_|=2; try_send(); }
-  void on_yaw(const int &v, fins::AcqTime)   { yaw_=v; mask_|=4; try_send(); }
-  void on_depth(const int &v, fins::AcqTime) { depth_=v; mask_|=8; try_send(); }
+  void run() override {}
+  void pause() override {}
+  void on_x(const int &v, fins::AcqTime)     { x_=v; auto m = mask_.fetch_or(1);  if ((m|1)==15) try_send(); }
+  void on_y(const int &v, fins::AcqTime)     { y_=v; auto m = mask_.fetch_or(2);  if ((m|2)==15) try_send(); }
+  void on_yaw(const int &v, fins::AcqTime)   { yaw_=v; auto m = mask_.fetch_or(4);  if ((m|4)==15) try_send(); }
+  void on_depth(const int &v, fins::AcqTime) { depth_=v; auto m = mask_.fetch_or(8);  if ((m|8)==15) try_send(); }
 private:
-  int x_=0, y_=0, yaw_=0, depth_=0, mask_=0;
+  int x_=0, y_=0, yaw_=0, depth_=0;
+  std::atomic<int> mask_{0};
   void try_send() {
-    if (mask_ == 15) {
-      send("hex", protocol::pack_motion(x_, y_, yaw_, depth_));
-      mask_ = 0;
-    }
+    send("hex", protocol::pack_motion(x_, y_, yaw_, depth_));
+    mask_.store(0);
   }
 };
 EXPORT_NODE(MotionEncoder)
@@ -45,6 +47,7 @@ public:
     register_input<int>("pwm_x", &ServoXEncoder::on_pwm_x);
     register_output<std::string>("hex");
   }
+  void run() override {} void pause() override {}
   void on_pwm_x(const int &v, fins::AcqTime) {
     send("hex", protocol::pack_servo(1, v));
   }
@@ -61,6 +64,7 @@ public:
     register_input<int>("pwm_y", &ServoYEncoder::on_pwm_y);
     register_output<std::string>("hex");
   }
+  void run() override {} void pause() override {}
   void on_pwm_y(const int &v, fins::AcqTime) {
     send("hex", protocol::pack_servo(2, v));
   }
@@ -77,6 +81,7 @@ public:
     register_input<int>("direction", &GripperEncoder::on_direction);
     register_output<std::string>("hex");
   }
+  void run() override {} void pause() override {}
   void on_direction(const int &dir, fins::AcqTime) {
     send("hex", protocol::pack_gripper(dir));
   }
